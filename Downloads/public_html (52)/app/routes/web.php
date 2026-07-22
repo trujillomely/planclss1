@@ -2704,6 +2704,124 @@ switch($url){
 
     /*
     |--------------------------------------------------------------------------
+    | ADMIN MIGRATION RUNNER (one-time DB fix)
+    |--------------------------------------------------------------------------
+    */
+
+    case 'admin/run-db-fix':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $_SESSION['error'] = 'Solo se permite POST.';
+            header('Location: ?url=admin/dashboard');
+            exit;
+        }
+        Csrf::validate();
+        try {
+            $pdo = Database::getInstance()->getConnection();
+            $results = [];
+
+            $sqls = [
+                "CREATE TABLE IF NOT EXISTS digital_signature (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    policy_id INT NOT NULL,
+                    user_id INT NOT NULL,
+                    signature_data LONGTEXT NOT NULL,
+                    signature_type VARCHAR(50) DEFAULT 'drawn',
+                    status VARCHAR(20) DEFAULT 'pending',
+                    signed_at DATETIME NULL,
+                    ip_address VARCHAR(45) NULL,
+                    user_agent TEXT NULL,
+                    notes TEXT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS payment_method (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description TEXT NULL,
+                    icon VARCHAR(50) NULL,
+                    is_active TINYINT(1) DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+                "CREATE TABLE IF NOT EXISTS payment_schedule (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    policy_id INT NOT NULL,
+                    transaction_id INT NULL,
+                    amount DECIMAL(10,2) NOT NULL,
+                    due_date DATE NOT NULL,
+                    paid_date DATE NULL,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    payment_method_id INT NULL,
+                    reference VARCHAR(100) NULL,
+                    notes TEXT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            ];
+
+            foreach ($sqls as $i => $sql) {
+                $pdo->exec($sql);
+                $results[] = "OK: Query " . ($i + 1);
+            }
+
+            $alterCols = [
+                ['payment_schedule', 'notes', "ALTER TABLE payment_schedule ADD COLUMN notes TEXT NULL AFTER reference"],
+                ['digital_signature', 'signature_type', "ALTER TABLE digital_signature ADD COLUMN signature_type VARCHAR(50) DEFAULT 'drawn' AFTER signature_data"],
+                ['digital_signature', 'status', "ALTER TABLE digital_signature ADD COLUMN status VARCHAR(20) DEFAULT 'pending' AFTER signature_type"],
+                ['digital_signature', 'signed_at', "ALTER TABLE digital_signature ADD COLUMN signed_at DATETIME NULL AFTER status"],
+                ['digital_signature', 'ip_address', "ALTER TABLE digital_signature ADD COLUMN ip_address VARCHAR(45) NULL AFTER signed_at"],
+                ['digital_signature', 'user_agent', "ALTER TABLE digital_signature ADD COLUMN user_agent TEXT NULL AFTER ip_address"],
+                ['digital_signature', 'notes', "ALTER TABLE digital_signature ADD COLUMN notes TEXT NULL AFTER user_agent"],
+                ['digital_signature', 'created_at', "ALTER TABLE digital_signature ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER notes"],
+                ['digital_signature', 'updated_at', "ALTER TABLE digital_signature ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"],
+            ];
+
+            foreach ($alterCols as $col) {
+                try {
+                    $stmt = $pdo->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$col[0]}' AND COLUMN_NAME = '{$col[1]}'");
+                    if ($stmt->fetchColumn() == 0) {
+                        $pdo->exec($col[2]);
+                        $results[] = "OK: Added {$col[0]}.{$col[1]}";
+                    } else {
+                        $results[] = "SKIP: {$col[0]}.{$col[1]} already exists";
+                    }
+                } catch (Exception $e) {
+                    $results[] = "WARN: {$col[0]}.{$col[1]} - " . $e->getMessage();
+                }
+            }
+
+            $defaultMethods = [
+                ['Efectivo', 'Pago en efectivo', 'cash'],
+                ['Transferencia Bancaria', 'Transferencia o depósito bancario', 'bank-transfer'],
+                ['Tarjeta de Crédito', 'Pago con tarjeta de crédito', 'credit-card'],
+                ['Tarjeta de Débito', 'Pago con tarjeta de débito', 'debit-card'],
+                ['Cheque', 'Pago con cheque', 'check'],
+                ['QR', 'Pago mediante código QR', 'qr'],
+            ];
+
+            $inserted = 0;
+            foreach ($defaultMethods as $m) {
+                try {
+                    $stmt = $pdo->prepare("INSERT IGNORE INTO payment_method (name, description, icon, is_active) VALUES (?, ?, ?, 1)");
+                    $stmt->execute($m);
+                    if ($stmt->rowCount() > 0) $inserted++;
+                } catch (Exception $e) {
+                    $results[] = "WARN: payment_method insert - " . $e->getMessage();
+                }
+            }
+            $results[] = "OK: Payment methods seeded ({$inserted} new)";
+
+            $_SESSION['success'] = '<strong>DB Fix completado!</strong><br>' . implode('<br>', $results);
+        } catch (Exception $e) {
+            error_log('[DB-FIX] ' . $e->getMessage());
+            $_SESSION['error'] = 'Error en DB Fix: ' . $e->getMessage();
+        }
+        header('Location: ?url=admin/dashboard');
+        exit;
+    break;
+
+    /*
+    |--------------------------------------------------------------------------
     | DEFAULT 404
     |--------------------------------------------------------------------------
     */
