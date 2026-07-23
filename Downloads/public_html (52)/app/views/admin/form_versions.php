@@ -181,7 +181,7 @@ $versions  = $versions ?? [];
                                                     </button>
                                                     <?php endif; ?>
                                                     <?php if ($isCurrent && !empty($v['id_form_type'])): ?>
-                                                    <a href="?url=<?= htmlspecialchars($panelPrefix ?? 'admin') ?>/form-builder?id=<?= (int)$v['id_form_type'] ?>" class="btn-icon" title="Abrir en constructor">
+                                                    <a href="?url=<?= htmlspecialchars($panelPrefix ?? 'admin') ?>/form-builder&id=<?= (int)$v['id_form_type'] ?>" class="btn-icon" title="Abrir en constructor">
                                                         <i class="bi bi-pencil-fill"></i>
                                                     </a>
                                                     <?php endif; ?>
