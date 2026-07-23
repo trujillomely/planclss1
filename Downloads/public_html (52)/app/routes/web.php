@@ -1819,6 +1819,13 @@ switch($url){
         $controller->saveStructure();
     break;
 
+    case 'admin/form-builder/get-structure':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormBuilderController.php';
+        $controller = new FormBuilderController();
+        $controller->getStructure();
+    break;
+
     // Form Submissions (Admin AJAX)
     case 'admin/form-submissions/list':
         require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
@@ -2148,6 +2155,13 @@ switch($url){
         require_once ROOT_PATH . '/app/controllers/FormSubmissionController.php';
         $controller = new FormSubmissionController();
         $controller->adminUpdateStatus();
+    break;
+
+    case 'gerente/form-builder/get-structure':
+        require_once ROOT_PATH . '/app/middlewares/GerenteMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormBuilderController.php';
+        $controller = new FormBuilderController();
+        $controller->getStructure();
     break;
 
     // CRM Gerente
@@ -2816,6 +2830,56 @@ switch($url){
                 }
             }
             $results[] = "OK: Payment methods seeded ({$inserted} new)";
+
+            $formFixSqls = [
+                "CREATE TABLE IF NOT EXISTS form_submission_history (
+                    id_submission_history INT AUTO_INCREMENT PRIMARY KEY,
+                    id_form_submission INT NOT NULL,
+                    changed_by INT NULL,
+                    previous_status VARCHAR(30) NULL,
+                    new_status VARCHAR(30) NULL,
+                    action VARCHAR(50) NULL,
+                    notes TEXT NULL,
+                    changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_submission (id_form_submission)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            ];
+
+            foreach ($formFixSqls as $i => $sql) {
+                try {
+                    $pdo->exec($sql);
+                    $results[] = "OK: Form table " . ($i + 1);
+                } catch (Exception $e) {
+                    $results[] = "WARN: Form table " . ($i + 1) . " - " . $e->getMessage();
+                }
+            }
+
+            try {
+                $stmt = $pdo->query("SELECT DATA_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'form_submission' AND COLUMN_NAME = 'status'");
+                $currentType = $stmt->fetchColumn();
+                if ($currentType && stripos($currentType, 'enum') !== false) {
+                    $pdo->exec("ALTER TABLE form_submission MODIFY COLUMN status VARCHAR(30) DEFAULT 'Enviado'");
+                    $results[] = "OK: Changed form_submission.status from ENUM to VARCHAR(30)";
+                } else {
+                    $results[] = "SKIP: form_submission.status is not ENUM";
+                }
+            } catch (Exception $e) {
+                $results[] = "WARN: form_submission.status alter - " . $e->getMessage();
+            }
+
+            $formHistoryChecks = [
+                ['form_submission_history', 'id_form_submission', "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'form_submission_history' AND COLUMN_NAME = 'id_form_submission'"],
+            ];
+            foreach ($formHistoryChecks as $check) {
+                try {
+                    $stmt = $pdo->query($check[2]);
+                    if ($stmt->fetchColumn() == 0) {
+                        $results[] = "OK: form_submission_history table ready";
+                    }
+                } catch (Exception $e) {
+                    $results[] = "WARN: history check - " . $e->getMessage();
+                }
+            }
 
             $_SESSION['success'] = '<strong>DB Fix completado!</strong><br>' . implode('<br>', $results);
         } catch (Exception $e) {
