@@ -629,6 +629,13 @@ switch($url){
     break;
 
     // Insurance Companies
+    case 'admin/insurance-companies/detail':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/InsuranceCompanyController.php';
+        $controller = new InsuranceCompanyController();
+        $controller->getDetail();
+    break;
+
     case 'admin/insurance-companies/get-by-id':
         require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
         require_once ROOT_PATH . '/app/controllers/InsuranceCompanyController.php';

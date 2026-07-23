@@ -69,6 +69,28 @@ class Policy {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    public function getByCompany($idCompany){
+        $query = "
+            SELECT
+                p.*,
+                CONCAT(u.username, ' ', u.lastname) AS user_name,
+                u.username AS client_name,
+                u.lastname AS client_lastname,
+                ic.name AS insurance_company_name,
+                it.name AS insurance_type_name
+            FROM {$this->table} p
+            LEFT JOIN user u ON p.id_user = u.id
+            LEFT JOIN insurance_company ic ON p.id_insurance_company = ic.id_insurance_company
+            LEFT JOIN insurance_type it ON p.id_insurance_type = it.id_insurance_type
+            WHERE p.id_insurance_company = :id_company
+            ORDER BY p.date_expiration ASC
+        ";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_company', $idCompany, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /** ¿La póliza indicada pertenece al usuario indicado? (chequeo de propiedad para el panel Cliente) */
     public function belongsToUser($idPolicy, $idUser){
         $query = "SELECT * FROM {$this->table} WHERE id_policy = :id_policy AND id_user = :id_user LIMIT 1";
