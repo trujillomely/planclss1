@@ -4,6 +4,7 @@
     <script>(function(){try{var t=localStorage.getItem('arco_theme')||'system';var dark=(t==='dark')||(t==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark){document.documentElement.setAttribute('data-theme','dark');}if(localStorage.getItem('arco_animations')==='off'){document.documentElement.classList.add('arco-no-animations');}}catch(e){}})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <?= Csrf::metaTag() ?>
     <title><?= htmlspecialchars($formType['name']) ?> | Arco Seguros</title>
     <link rel="stylesheet" href="<?= URL ?>assets/css/panel.css">
     <link rel="stylesheet" href="<?= URL ?>assets/css/admin-pages.css">

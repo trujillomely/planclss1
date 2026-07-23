@@ -79,4 +79,50 @@ class FormBuilderController {
         echo json_encode(['success' => true, 'data' => $structure]);
         exit;
     }
+
+    public function publishVersion() {
+        Auth::requirePermissionAjax('formularios', 'editar');
+        header('Content-Type: application/json');
+        $body = json_decode(file_get_contents('php://input'), true);
+        $versionId = intval($body['id_form_version'] ?? 0);
+        $formTypeId = intval($body['id_form_type'] ?? 0);
+
+        if (!$versionId || !$formTypeId) {
+            echo json_encode(['success' => false, 'message' => 'Datos inválidos.']);
+            exit;
+        }
+
+        require_once ROOT_PATH . '/app/config/database.php';
+        $db = new Database();
+        $conn = $db->connect();
+
+        $stmt = $conn->prepare("UPDATE form_type SET id_current_version = :vid, updated_at = CURRENT_TIMESTAMP WHERE id_form_type = :id");
+        $stmt->execute([':vid' => $versionId, ':id' => $formTypeId]);
+
+        echo json_encode(['success' => true, 'message' => 'Versión publicada correctamente.']);
+        exit;
+    }
+
+    public function createVersion() {
+        Auth::requirePermissionAjax('formularios', 'editar');
+        header('Content-Type: application/json');
+        $body = json_decode(file_get_contents('php://input'), true);
+        $formTypeId = intval($body['id_form_type'] ?? 0);
+
+        if (!$formTypeId) {
+            echo json_encode(['success' => false, 'message' => 'ID de formulario inválido.']);
+            exit;
+        }
+
+        require_once ROOT_PATH . '/app/models/FormBuilder.php';
+        $builder = new FormBuilder();
+        $versionId = $builder->createNewVersion($formTypeId, $_SESSION['id_user'] ?? null);
+
+        if ($versionId) {
+            echo json_encode(['success' => true, 'message' => 'Nueva versión creada.', 'data' => ['id_form_version' => $versionId]]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Error al crear la versión.']);
+        }
+        exit;
+    }
 }

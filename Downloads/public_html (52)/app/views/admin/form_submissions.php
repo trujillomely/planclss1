@@ -379,16 +379,25 @@ $stats       = $stats ?? ['total' => 0, 'pendientes' => 0, 'revisados' => 0, 're
         </div>
         <div class="modal-body" id="detailBody" style="max-height:55vh;overflow-y:auto;padding:20px;"><p style="color:#9ca3af;text-align:center;padding:24px;">Cargando...</p></div>
         <div class="modal-footer" style="padding:16px 20px;border-top:1px solid var(--arco-perla);">
-            <div class="admin-status-controls" id="statusControls" style="display:none;">
-                <select id="statusSelect">
-                    <option value="Pendiente">Pendiente</option>
-                    <option value="Enviado">Enviado</option>
-                    <option value="Revisado">Revisado</option>
-                    <option value="Rechazado">Rechazado</option>
-                </select>
-                <button onclick="updateStatus()" style="display:flex;align-items:center;gap:6px;"><i class="bi bi-check-lg"></i> Actualizar</button>
+            <div class="detail-footer-controls" id="statusControls" style="display:none;">
+                <div>
+                    <label class="detail-notes-label" for="reviewNotesInput">Notas de revisión</label>
+                    <textarea class="detail-notes-area" id="reviewNotesInput" placeholder="Escribe notas sobre esta revisión..."></textarea>
+                </div>
+                <div class="admin-status-controls">
+                    <select id="statusSelect">
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Revisado">Revisado</option>
+                        <option value="Rechazado">Rechazado</option>
+                    </select>
+                    <button onclick="confirmUpdateStatus()" style="display:flex;align-items:center;gap:6px;"><i class="bi bi-check-lg"></i> Actualizar</button>
+                </div>
             </div>
-            <button class="btn-secondary" onclick="closeDetail()">Cerrar</button>
+            <div style="display:flex;gap:8px;margin-left:auto;">
+                <a id="detailPdfLink" href="#" target="_blank" class="btn-sm primary" style="display:none;padding:5px 12px;border-radius:6px;font-size:.8rem;font-weight:500;background:var(--arco-siena);color:#fff;text-decoration:none"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                <button class="btn-secondary" onclick="closeDetail()">Cerrar</button>
+            </div>
         </div>
     </div>
 </div>
@@ -631,6 +640,8 @@ var currentSubmissionId = null;
 function closeDetail() {
     document.getElementById('detailModal').classList.remove('open');
     currentSubmissionId = null;
+    var pdfLink = document.getElementById('detailPdfLink');
+    if (pdfLink) { pdfLink.style.display = 'none'; pdfLink.href = '#'; }
 }
 
 document.getElementById('detailModal').addEventListener('click', function(e) {
@@ -639,9 +650,10 @@ document.getElementById('detailModal').addEventListener('click', function(e) {
 
 function viewSubmission(id) {
     currentSubmissionId = id;
-    document.getElementById('detailBody').innerHTML = '<p>Cargando...</p>';
+    document.getElementById('detailBody').innerHTML = '<div class="detail-loading"><i class="bi bi-arrow-repeat"></i>Cargando...</div>';
     document.getElementById('detailModal').classList.add('open');
     document.getElementById('statusControls').style.display = 'none';
+    document.getElementById('reviewNotesInput').value = '';
     var prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';
     fetch('?url=' + prefix + '/form-submissions/detail&id=' + id)
         .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
@@ -654,36 +666,116 @@ function viewSubmission(id) {
             html += '<div class="submission-detail-field"><div class="field-label">Usuario</div><div class="field-value">' + escHtml((sub.username||'')+' '+(sub.lastname||'')) + ' (' + escHtml(sub.user_email||'') + ')</div></div>';
             html += '<div class="submission-detail-field"><div class="field-label">Fecha</div><div class="field-value">' + (sub.submitted_at || sub.created_at) + '</div></div>';
             html += '<div class="submission-detail-field"><div class="field-label">Estado</div><div class="field-value"><span class="submission-status-badge status-' + sub.status.toLowerCase() + '">' + escHtml(sub.status) + '</span></div></div>';
-            if (sub.review_notes) html += '<div class="submission-detail-field"><div class="field-label">Notas</div><div class="field-value">' + escHtml(sub.review_notes) + '</div></div>';
+            if (sub.review_notes) html += '<div class="submission-detail-field"><div class="field-label">Notas de revisión</div><div class="field-value">' + escHtml(sub.review_notes) + '</div></div>';
             html += '<div style="margin-top:8px;font-size:.85rem;font-weight:700;">Valores del formulario</div>';
             (sub.values || []).forEach(function(v) {
                 var dv = v.field_value || '---';
                 if (v.field_key === 'signature' && dv.indexOf('data:image') === 0) {
                     dv = '<img src="' + dv + '" style="max-width:200px;border:1px solid #e5e7eb;border-radius:4px;">';
-                } else { dv = escHtml(dv); }
+                } else if (v.field_key === 'file' && dv && dv !== '---') {
+                    var fileUrl = dv;
+                    var fileName = dv.split('/').pop();
+                    dv = '<a href="' + escHtml(fileUrl) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:var(--mod-accent,var(--arco-siena));text-decoration:none;font-weight:600;"><i class="bi bi-file-earmark-arrow-down"></i>' + escHtml(fileName) + '</a>';
+                } else {
+                    dv = escHtml(dv);
+                }
                 html += '<div class="submission-detail-field"><div class="field-label">' + escHtml(v.field_label) + '</div><div class="field-value">' + dv + '</div></div>';
             });
+
+            if (sub.attachments && sub.attachments.length > 0) {
+                html += '<div class="detail-attachments"><div class="att-title"><i class="bi bi-paperclip"></i> Archivos adjuntos</div>';
+                sub.attachments.forEach(function(att) {
+                    var size = att.file_size ? formatFileSize(att.file_size) : '';
+                    html += '<a href="' + escHtml(att.file_url) + '" target="_blank" rel="noopener"><i class="bi bi-file-earmark"></i>' + escHtml(att.file_name || 'Archivo') + (size ? '<span class="att-size">' + size + '</span>' : '') + '</a>';
+                });
+                html += '</div>';
+            }
+
+            if (sub.history && sub.history.length > 0) {
+                html += '<div class="detail-history"><div class="hist-title"><i class="bi bi-clock-history"></i> Historial de cambios</div><div class="detail-history-list">';
+                sub.history.forEach(function(h) {
+                    var userName = ((h.username || '') + ' ' + (h.lastname || '')).trim() || 'Sistema';
+                    var histDate = h.changed_at || '';
+                    var noteText = '<strong>' + escHtml(userName) + '</strong>';
+                    if (h.previous_status && h.new_status) {
+                        noteText += ' cambió de <strong>' + escHtml(h.previous_status) + '</strong> a <strong>' + escHtml(h.new_status) + '</strong>';
+                    }
+                    if (h.notes) noteText += ' — ' + escHtml(h.notes);
+                    html += '<div class="detail-history-item"><div class="hist-dot"></div><div class="hist-text">' + noteText + '</div><div class="hist-date">' + escHtml(histDate) + '</div></div>';
+                });
+                html += '</div></div>';
+            }
+
             html += '</div>';
             document.getElementById('detailBody').innerHTML = html;
             document.getElementById('statusSelect').value = sub.status;
-            document.getElementById('statusControls').style.display = 'flex';
+            if (sub.review_notes) document.getElementById('reviewNotesInput').value = sub.review_notes;
+            document.getElementById('statusControls').style.display = 'block';
+            var pdfLink = document.getElementById('detailPdfLink');
+            pdfLink.href = '?url=' + prefix + '/form-submissions/download-pdf&id=' + sub.id_form_submission;
+            pdfLink.style.display = 'inline-flex';
         })
         .catch(function() { document.getElementById('detailBody').innerHTML = '<p>Error de conexion.</p>'; });
+}
+
+function formatFileSize(bytes) {
+    if (!bytes) return '';
+    var b = parseInt(bytes, 10);
+    if (isNaN(b)) return '';
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+}
+
+function confirmUpdateStatus() {
+    if (!currentSubmissionId) return;
+    var status = document.getElementById('statusSelect').value;
+    showConfirm('¿Actualizar el estado a "' + status + '"?').then(function(ok) {
+        if (ok) updateStatus();
+    });
 }
 
 function updateStatus() {
     if (!currentSubmissionId) return;
     var status = document.getElementById('statusSelect').value;
+    var notes = document.getElementById('reviewNotesInput').value.trim();
     var prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';
     fetch('?url=' + prefix + '/form-submissions/update-status', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id: currentSubmissionId, status: status })
+        body: JSON.stringify({ id: currentSubmissionId, status: status, review_notes: notes })
     })
     .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
     .then(function(data) {
-        if (data.success) { location.reload(); }
-        else { showToast(data.message || 'Error al actualizar.', 'error'); }
+        if (data.success) {
+            var id = currentSubmissionId;
+            allSubmissions.forEach(function(s) {
+                if (parseInt(s.id_form_submission) === parseInt(id)) {
+                    s.status = status;
+                    s.review_notes = notes;
+                }
+            });
+            var row = document.querySelector('tr[data-submission-id="' + id + '"]');
+            if (!row) {
+                var rows = document.querySelectorAll('#submissionsBody tr');
+                for (var i = 0; i < rows.length; i++) {
+                    var cell = rows[i].querySelector('td:first-child');
+                    if (cell && cell.textContent === '#' + id) { row = rows[i]; break; }
+                }
+            }
+            if (row) {
+                var statusCell = row.querySelector('.submission-status-badge');
+                if (statusCell) {
+                    statusCell.className = 'submission-status-badge status-' + status.toLowerCase();
+                    statusCell.textContent = status;
+                }
+            }
+            updateStatusCounts();
+            closeDetail();
+            showToast('Estado actualizado correctamente.', 'success');
+        } else {
+            showToast(data.message || 'Error al actualizar.', 'error');
+        }
     })
     .catch(function() { showToast('Error de conexion.', 'error'); });
 }

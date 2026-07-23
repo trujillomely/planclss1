@@ -417,6 +417,38 @@ class ClienteController {
         require_once ROOT_PATH . '/app/views/cliente/form_detail.php';
     }
 
+    public function formSubmissions(){
+        $this->requireAuth();
+
+        require_once ROOT_PATH . '/app/models/FormSubmission.php';
+        $submissionModel = new FormSubmission();
+        $submissions = $submissionModel->getByUser($_SESSION['id_user']);
+
+        require_once ROOT_PATH . '/app/views/cliente/form_submission_list.php';
+    }
+
+    public function formSubmissionDetail(){
+        $this->requireAuth();
+
+        require_once ROOT_PATH . '/app/models/FormSubmission.php';
+        $idSubmission = intval($_GET['id'] ?? 0);
+
+        if (!$idSubmission) {
+            header('Location: ?url=cliente/form/submissions');
+            exit;
+        }
+
+        $submissionModel = new FormSubmission();
+        $submission = $submissionModel->getById($idSubmission);
+
+        if (!$submission || $submission['id_user'] != $_SESSION['id_user']) {
+            header('Location: ?url=cliente/form/submissions');
+            exit;
+        }
+
+        require_once ROOT_PATH . '/app/views/cliente/form_submission_detail.php';
+    }
+
     public function services(){
         $this->requireAuth();
 

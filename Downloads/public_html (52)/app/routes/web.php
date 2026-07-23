@@ -1840,6 +1840,20 @@ switch($url){
         $controller->getStructure();
     break;
 
+    case 'admin/form-builder/publish-version':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormBuilderController.php';
+        $controller = new FormBuilderController();
+        $controller->publishVersion();
+    break;
+
+    case 'admin/form-builder/create-version':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormBuilderController.php';
+        $controller = new FormBuilderController();
+        $controller->createVersion();
+    break;
+
     // Form Submissions (Admin AJAX)
     case 'admin/form-submissions/list':
         require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
@@ -2444,6 +2458,34 @@ switch($url){
         require_once ROOT_PATH . '/app/controllers/FormSubmissionController.php';
         $controller = new FormSubmissionController();
         $controller->getSubmission();
+    break;
+
+    case 'cliente/form/submissions':
+        require_once ROOT_PATH . '/app/middlewares/ClienteMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/ClienteController.php';
+        $controller = new ClienteController();
+        $controller->formSubmissions();
+    break;
+
+    case 'cliente/form/submission-detail':
+        require_once ROOT_PATH . '/app/middlewares/ClienteMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/ClienteController.php';
+        $controller = new ClienteController();
+        $controller->formSubmissionDetail();
+    break;
+
+    case 'cliente/form/download-filled-pdf':
+        require_once ROOT_PATH . '/app/middlewares/ClienteMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormSubmissionController.php';
+        $controller = new FormSubmissionController();
+        $controller->downloadFilledPdf();
+    break;
+
+    case 'admin/form-submissions/download-pdf':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormSubmissionController.php';
+        $controller = new FormSubmissionController();
+        $controller->adminDownloadFilledPdf();
     break;
 
     case 'cliente/services':

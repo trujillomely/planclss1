@@ -128,6 +128,14 @@ class FormSubmission {
         $valStmt->execute([':id' => $idSubmission]);
         $submission['values'] = $valStmt->fetchAll(PDO::FETCH_ASSOC);
 
+        $attStmt = $this->conn->prepare("SELECT * FROM form_attachment WHERE id_form_submission = :id");
+        $attStmt->execute([':id' => $idSubmission]);
+        $submission['attachments'] = $attStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $histStmt = $this->conn->prepare("SELECT h.*, u.username, u.lastname FROM form_submission_history h LEFT JOIN user u ON u.id = h.changed_by WHERE h.id_form_submission = :id ORDER BY h.changed_at DESC");
+        $histStmt->execute([':id' => $idSubmission]);
+        $submission['history'] = $histStmt->fetchAll(PDO::FETCH_ASSOC);
+
         return $submission;
     }
 
@@ -138,7 +146,7 @@ class FormSubmission {
             INNER JOIN form_version v ON v.id_form_version = s.id_form_version
             INNER JOIN form_type t ON t.id_form_type = v.id_form_type
             WHERE s.id_user = :user
-            ORDER BY s.created_at DESC
+            ORDER BY COALESCE(s.submitted_at, s.created_at) DESC
         ");
         $stmt->execute([':user' => $idUser]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -189,6 +197,23 @@ class FormSubmission {
         }
 
         return $result;
+    }
+
+    public function getHistory($idSubmission){
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT h.*, u.username, u.lastname
+                FROM form_submission_history h
+                LEFT JOIN user u ON u.id = h.changed_by
+                WHERE h.id_form_submission = :id
+                ORDER BY h.changed_at DESC
+            ");
+            $stmt->execute([':id' => $idSubmission]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            error_log('[FORM-HISTORY] Error: ' . $e->getMessage());
+            return [];
+        }
     }
 
     public function countByFormType($idFormType){

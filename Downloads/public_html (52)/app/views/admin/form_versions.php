@@ -109,6 +109,19 @@ $versions  = $versions ?? [];
                         <div class="content-card-title">Historial de versiones</div>
                         <div class="content-card-sub">Todas las versiones registradas de cada formulario</div>
                     </div>
+                    <div>
+                        <?php if (!empty($formTypes)): ?>
+                        <select id="createVersionSelect" style="padding:6px 10px;border-radius:8px;border:1px solid var(--arco-perla,#e5e0d8);font-size:.82rem;background:var(--arco-card-bg,#fff);margin-right:8px;">
+                            <option value="">Seleccionar formulario…</option>
+                            <?php foreach ($formTypes as $ft): ?>
+                                <option value="<?= (int)$ft['id_form_type'] ?>"><?= htmlspecialchars($ft['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button class="btn btn-primary" onclick="var sel=document.getElementById('createVersionSelect');if(!sel.value){showToast('Selecciona un formulario.','error');return;}createNewVersion(sel.value);">
+                            <i class="bi bi-plus-lg"></i> Nueva Versión
+                        </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="content-card-body">
 
@@ -162,6 +175,11 @@ $versions  = $versions ?? [];
                                             <td><?= $v['created_at'] ? date('d/m/Y H:i', strtotime($v['created_at'])) : '—' ?></td>
                                             <td>
                                                 <div style="display:flex; gap:6px;">
+                                                    <?php if (!$isCurrent && !empty($v['id_form_type'])): ?>
+                                                    <button class="btn-icon" title="Publicar versión" onclick="publishVersion(<?= (int)$v['id_form_version'] ?>, <?= (int)$v['id_form_type'] ?>)" style="color:#16a34a;">
+                                                        <i class="bi bi-check-circle-fill"></i>
+                                                    </button>
+                                                    <?php endif; ?>
                                                     <?php if ($isCurrent && !empty($v['id_form_type'])): ?>
                                                     <a href="?url=<?= htmlspecialchars($panelPrefix ?? 'admin') ?>/form-builder?id=<?= (int)$v['id_form_type'] ?>" class="btn-icon" title="Abrir en constructor">
                                                         <i class="bi bi-pencil-fill"></i>
@@ -280,6 +298,42 @@ function escHtml(t) {
     var d = document.createElement('div');
     d.textContent = t || '';
     return d.innerHTML;
+}
+
+function publishVersion(versionId, formTypeId) {
+    showConfirm('¿Establecer esta versión como la actual? Los clientes verán esta versión del formulario.').then(function(ok) {
+        if (!ok) return;
+        fetch('?url=admin/form-builder/publish-version', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id_form_version: versionId, id_form_type: formTypeId })
+        })
+        .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
+        .then(function(data) {
+            if (data.success) { location.reload(); }
+            else { showToast(data.message || 'Error.', 'error'); }
+        })
+        .catch(() => showToast('Error de conexión.', 'error'));
+    });
+}
+
+function createNewVersion(formTypeId) {
+    showConfirm('¿Crear una nueva versión de este formulario? Se copiará la estructura actual.').then(function(ok) {
+        if (!ok) return;
+        fetch('?url=admin/form-builder/create-version', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id_form_type: formTypeId })
+        })
+        .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
+        .then(function(data) {
+            if (data.success) { 
+                showToast('Nueva versión creada.', 'success');
+                setTimeout(() => location.reload(), 800);
+            } else { showToast(data.message || 'Error.', 'error'); }
+        })
+        .catch(() => showToast('Error de conexión.', 'error'));
+    });
 }
 
 var prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';

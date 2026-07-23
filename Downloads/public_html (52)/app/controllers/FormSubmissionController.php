@@ -100,7 +100,39 @@ class FormSubmissionController {
                 $fileSize = $_FILES['fields']['size'][$fieldId];
                 $fileType = $_FILES['fields']['type'][$fieldId] ?? 'application/octet-stream';
 
+                $allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx'];
+                $allowedMimeTypes = [
+                    'application/pdf',
+                    'image/jpeg',
+                    'image/png',
+                    'application/msword',
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'application/vnd.ms-excel',
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ];
+
                 $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+                if (!in_array($ext, $allowedExtensions)) {
+                    echo json_encode(['success' => false, 'message' => "Extensión no permitida: {$ext}. Archivos permitidos: " . implode(', ', $allowedExtensions) . "."]);
+                    exit;
+                }
+
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $realMimeType = finfo_file($finfo, $fileTmp);
+                finfo_close($finfo);
+
+                if (!in_array($realMimeType, $allowedMimeTypes)) {
+                    echo json_encode(['success' => false, 'message' => "Tipo de archivo no permitido: {$realMimeType}."]);
+                    exit;
+                }
+
+                $maxFileSize = 10 * 1024 * 1024;
+                if ($fileSize > $maxFileSize) {
+                    echo json_encode(['success' => false, 'message' => 'El archivo excede el tamaño máximo de 10MB.']);
+                    exit;
+                }
+
                 $safeName = 'form_' . $idSubmission . '_' . $fieldId . '_' . time() . '.' . $ext;
                 $dest = $uploadDir . $safeName;
 
@@ -121,6 +153,7 @@ class FormSubmissionController {
         ]);
 
         $this->sendAdminNotification($formType['name'], $result['submission_number'], $idUser);
+        $this->sendUserConfirmation($formType['name'], $result['submission_number'], $idUser);
 
         exit;
     }
@@ -186,6 +219,53 @@ class FormSubmissionController {
             }
         } catch (Exception $e) {
             error_log('sendAdminNotification error: ' . $e->getMessage());
+        }
+    }
+
+    private function sendUserConfirmation($formName, $submissionNumber, $userId){
+        try {
+            require_once ROOT_PATH . '/app/models/User.php';
+
+            $userModel = new User();
+            $user = $userModel->findById($userId);
+            if (!$user || empty($user['email'])) return;
+
+            $userEmail = $user['email'];
+            $userName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+
+            $htmlBody = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">';
+            $htmlBody .= '<div style="max-width:600px;margin:30px auto;background-color:#ffffff;border-radius:8px;overflow:hidden;">';
+            $htmlBody .= '<div style="background-color:#1a1a2e;padding:24px 30px;text-align:center;">';
+            $htmlBody .= '<h1 style="margin:0;color:#ffffff;font-size:20px;letter-spacing:3px;">ARCO SEGUROS</h1>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '<div style="padding:30px;text-align:center;">';
+            $htmlBody .= '<div style="width:60px;height:60px;border-radius:50%;background-color:#27ae60;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">';
+            $htmlBody .= '<span style="color:#ffffff;font-size:28px;">&#10003;</span>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '<h2 style="margin:0 0 10px;color:#1a1a2e;font-size:18px;">Confirmaci&oacute;n de env&iacute;o</h2>';
+            $htmlBody .= '<p style="color:#666;font-size:14px;margin:0 0 24px;">Hola ' . htmlspecialchars($userName) . ', tu formulario ha sido recibido exitosamente.</p>';
+            $htmlBody .= '<table style="width:100%;border-collapse:collapse;text-align:left;margin-bottom:24px;">';
+            $htmlBody .= '<tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:6px 0 0 6px;font-weight:bold;color:#555;font-size:13px;width:40%;">Formulario</td>';
+            $htmlBody .= '<td style="padding:10px 14px;background:#f9f9f9;border-radius:0 6px 6px 0;color:#1a1a2e;font-size:13px;">' . htmlspecialchars($formName) . '</td></tr>';
+            $htmlBody .= '<tr><td style="padding:10px 14px;font-weight:bold;color:#555;font-size:13px;">N&uacute;mero de env&iacute;o</td>';
+            $htmlBody .= '<td style="padding:10px 14px;color:#1a1a2e;font-size:13px;">' . htmlspecialchars($submissionNumber) . '</td></tr>';
+            $htmlBody .= '<tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:6px 0 0 6px;font-weight:bold;color:#555;font-size:13px;">Fecha</td>';
+            $htmlBody .= '<td style="padding:10px 14px;background:#f9f9f9;border-radius:0 6px 6px 0;color:#1a1a2e;font-size:13px;">' . date('d/m/Y H:i') . '</td></tr>';
+            $htmlBody .= '</table>';
+            $htmlBody .= '<p style="color:#666;font-size:13px;margin:0;">Guarda tu n&uacute;mero de env&iacute;o para futuras consultas.</p>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '<div style="background-color:#f4f4f4;padding:16px 30px;text-align:center;">';
+            $htmlBody .= '<p style="margin:0;color:#999;font-size:11px;">Este es un correo autom&aacute;tico de Arco Seguros. No respondas directamente a este mensaje.</p>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '</div></body></html>';
+
+            $headers = "MIME-Version: 1.0\r\n";
+            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+            $headers .= "From: Arco Seguros <noreply@arco-seguros.com>\r\n";
+
+            mail($userEmail, "Confirmación de envío - {$formName}", $htmlBody, $headers);
+        } catch (Exception $e) {
+            error_log('sendUserConfirmation error: ' . $e->getMessage());
         }
     }
 
@@ -333,6 +413,58 @@ class FormSubmissionController {
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al actualizar el estado.']);
         }
+        exit;
+    }
+
+    public function downloadFilledPdf(){
+        $idUser = $this->getClientUser();
+        $idSubmission = intval($_GET['id'] ?? 0);
+
+        if (!$idSubmission) {
+            header('Location: ?url=cliente/form/submissions');
+            exit;
+        }
+
+        $model = new FormSubmission();
+        $submission = $model->getById($idSubmission);
+
+        if (!$submission || $submission['id_user'] != $idUser) {
+            header('Location: ?url=cliente/form/submissions');
+            exit;
+        }
+
+        require_once ROOT_PATH . '/app/models/FormBuilder.php';
+        $builderModel = new FormBuilder();
+        $structure = $builderModel->getStructure($submission['id_form_version']);
+
+        require_once ROOT_PATH . '/app/helpers/FormSubmissionPdfHelper.php';
+        FormSubmissionPdfHelper::generate($submission, $structure);
+        exit;
+    }
+
+    public function adminDownloadFilledPdf(){
+        Auth::requirePermissionAjax('formularios', 'ver');
+        $idSubmission = intval($_GET['id'] ?? 0);
+
+        if (!$idSubmission) {
+            header('Location: ?url=admin/form-submissions');
+            exit;
+        }
+
+        $model = new FormSubmission();
+        $submission = $model->getById($idSubmission);
+
+        if (!$submission) {
+            header('Location: ?url=admin/form-submissions');
+            exit;
+        }
+
+        require_once ROOT_PATH . '/app/models/FormBuilder.php';
+        $builderModel = new FormBuilder();
+        $structure = $builderModel->getStructure($submission['id_form_version']);
+
+        require_once ROOT_PATH . '/app/helpers/FormSubmissionPdfHelper.php';
+        FormSubmissionPdfHelper::generate($submission, $structure);
         exit;
     }
 }
