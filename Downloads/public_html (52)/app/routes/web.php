@@ -2711,13 +2711,12 @@ switch($url){
     case 'admin/run-db-fix':
         require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $_SESSION['error'] = 'Solo se permite POST.';
             header('Location: ?url=admin/dashboard');
             exit;
         }
-        Csrf::validate();
         try {
-            $pdo = Database::getInstance()->getConnection();
+            $db = new Database();
+            $pdo = $db->connect();
             $results = [];
 
             $sqls = [
