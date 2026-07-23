@@ -163,6 +163,11 @@ $formTypes = $formTypes ?? [];
                                                         <i class="bi bi-pencil-fill"></i>
                                                     </button>
                                                     <?php endif; ?>
+                                                    <?php if (Auth::can('formularios', 'crear')): ?>
+                                                    <button class="btn-icon" title="Duplicar formulario" onclick="duplicateForm(<?= (int) $form['id_form_type'] ?>)">
+                                                        <i class="bi bi-copy"></i>
+                                                    </button>
+                                                    <?php endif; ?>
                                                     <?php if (Auth::can('formularios', 'eliminar')): ?>
                                                         <?php if ($activo): ?>
                                                         <button class="btn-icon" title="Desactivar" onclick="toggleStatus(<?= (int) $form['id_form_type'] ?>, 1)">
@@ -379,6 +384,27 @@ function toggleStatus(id, currentStatus, force) {
     if (force) { doAction(); } else {
         showConfirm(mensaje).then(function(ok) { if (ok) doAction(); });
     }
+}
+
+function duplicateForm(id) {
+    showConfirm('¿Duplicar este formulario con todos sus campos?').then(function(ok) {
+        if (!ok) return;
+        fetch('?url=admin/form-types/duplicate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id: id })
+        })
+        .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
+        .then(data => {
+            if (data.success) {
+                showToast('Formulario duplicado correctamente.', 'success');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast(data.message || 'Error al duplicar.', 'error');
+            }
+        })
+        .catch(() => showToast('Error de conexión.', 'error'));
+    });
 }
 </script>
 

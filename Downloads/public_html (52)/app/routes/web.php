@@ -1811,6 +1811,20 @@ switch($url){
         $controller->reactivate();
     break;
 
+    case 'admin/form-types/store-from-template':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormTypeController.php';
+        $controller = new FormTypeController();
+        $controller->storeFromTemplate();
+    break;
+
+    case 'admin/form-types/duplicate':
+        require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';
+        require_once ROOT_PATH . '/app/controllers/FormTypeController.php';
+        $controller = new FormTypeController();
+        $controller->duplicate();
+    break;
+
     // Form Builder
     case 'admin/form-builder/save-structure':
         require_once ROOT_PATH . '/app/middlewares/AdminMiddleware.php';

@@ -171,7 +171,56 @@ $sections   = $sections ?? [];
                 </script>
                 <?php endif; ?>
 
-            <?php else: ?>
+                <div style="margin-top:24px;">
+                    <div class="content-card">
+                        <div class="content-card-header">
+                            <div>
+                                <div class="content-card-title">O plantillas predefinidas</div>
+                                <div class="content-card-sub">Crea un formulario rápido a partir de una plantilla</div>
+                            </div>
+                        </div>
+                        <div class="content-card-body">
+                            <div class="fb-picker-grid">
+                                <div class="fb-picker-card" style="cursor:pointer;" onclick="useTemplate('poliza')">
+                                    <h4><i class="bi bi-shield-check"></i> Solicitud de Póliza</h4>
+                                    <p>Datos del asegurado, detalles de cobertura e información adicional</p>
+                                    <span class="badge badge-active">Plantilla</span>
+                                </div>
+                                <div class="fb-picker-card" style="cursor:pointer;" onclick="useTemplate('reclamo')">
+                                    <h4><i class="bi bi-exclamation-triangle"></i> Reclamo de Seguro</h4>
+                                    <p>Datos del reclamante, detalles del reclamo y documentos soporte</p>
+                                    <span class="badge badge-active">Plantilla</span>
+                                </div>
+                                <div class="fb-picker-card" style="cursor:pointer;" onclick="useTemplate('actualizacion')">
+                                    <h4><i class="bi bi-pencil-square"></i> Actualización de Datos</h4>
+                                    <p>Datos personales y cambios solicitados</p>
+                                    <span class="badge badge-active">Plantilla</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                function useTemplate(templateKey) {
+                    showConfirm('¿Crear formulario desde esta plantilla?').then(function(ok) {
+                        if (!ok) return;
+                        fetch('?url=admin/form-types/store-from-template', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ template_key: templateKey })
+                        })
+                        .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
+                        .then(data => {
+                            if (data.success && data.data && data.data.id_form_type) {
+                                window.location.href = '?url=admin/form-builder&id=' + data.data.id_form_type;
+                            } else {
+                                showToast(data.message || 'Error al crear desde plantilla.', 'error');
+                            }
+                        })
+                        .catch(() => showToast('Error de conexión.', 'error'));
+                    });
+                }
+                </script>
 
                 <!-- Encabezado del formulario seleccionado -->
                 <div class="fb-header">

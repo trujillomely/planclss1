@@ -112,6 +112,26 @@
         const structure = <?= json_encode($structure, JSON_UNESCAPED_UNICODE) ?>;
         renderFormFields(formFields, structure);
 
+        const dependencies = <?= json_encode($dependencies ?? []) ?>;
+        if (dependencies.length) {
+            dependencies.forEach(function(dep) {
+                const source = document.querySelector('[data-field-id="' + dep.id_source_field + '"]');
+                const target = document.querySelector('[data-field-id="' + dep.id_dependent_field + '"]');
+                if (!source || !target) return;
+                function evaluate() {
+                    const val = source.querySelector('input, select, textarea') ? source.querySelector('input, select, textarea').value : '';
+                    const match = dep.condition_operator === 'equals' ? val === dep.condition_value :
+                                 dep.condition_operator === 'not_equals' ? val !== dep.condition_value :
+                                 dep.condition_operator === 'contains' ? val.indexOf(dep.condition_value) !== -1 :
+                                 dep.condition_operator === 'not_empty' ? val.trim() !== '' : false;
+                    target.style.display = match ? '' : 'none';
+                }
+                source.addEventListener('input', evaluate);
+                source.addEventListener('change', evaluate);
+                evaluate();
+            });
+        }
+
         // Submit handler
         btnSubmit.addEventListener('click', function() {
             submitFormAjax(formFields, btnSubmit, function(res) {

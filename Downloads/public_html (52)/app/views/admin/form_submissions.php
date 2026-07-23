@@ -53,6 +53,205 @@ $stats       = $stats ?? ['total' => 0, 'pendientes' => 0, 'revisados' => 0, 're
         };
     })();
     </script>
+
+    <style>
+        .filter-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .filter-bar-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar input[type="text"],
+        .filter-bar select,
+        .filter-bar input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--arco-perla);
+            border-radius: 8px;
+            font-size: .85rem;
+            background: var(--arco-blanco);
+            color: var(--color-text, #1f2937);
+            outline: none;
+            transition: border-color .2s;
+        }
+
+        .filter-bar input[type="text"]:focus,
+        .filter-bar select:focus,
+        .filter-bar input[type="date"]:focus {
+            border-color: var(--arco-siena);
+        }
+
+        .filter-bar input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-bar select {
+            min-width: 160px;
+        }
+
+        .filter-bar input[type="date"] {
+            min-width: 140px;
+        }
+
+        .status-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .status-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--arco-perla);
+            background: var(--arco-blanco);
+            color: var(--color-text, #4b5563);
+            font-size: .8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            user-select: none;
+        }
+
+        .status-tab:hover {
+            border-color: var(--arco-siena);
+            color: var(--arco-siena);
+        }
+
+        .status-tab.active {
+            background: var(--mod-accent, var(--arco-siena));
+            color: #fff;
+            border-color: var(--mod-accent, var(--arco-siena));
+        }
+
+        .status-tab .tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            border-radius: 10px;
+            font-size: .7rem;
+            font-weight: 700;
+            padding: 0 5px;
+            background: rgba(0,0,0,.08);
+        }
+
+        .status-tab.active .tab-count {
+            background: rgba(255,255,255,.25);
+        }
+
+        .btn-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--arco-perla);
+            background: var(--arco-blanco);
+            color: var(--color-text, #4b5563);
+            font-size: .8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all .2s;
+            white-space: nowrap;
+        }
+
+        .btn-export:hover {
+            border-color: var(--arco-siena);
+            color: var(--arco-siena);
+        }
+
+        .pagination-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0 4px;
+            font-size: .8rem;
+            color: #6b7280;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pagination-info .showing-text {
+            font-weight: 500;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .pagination-controls button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 8px;
+            border-radius: 6px;
+            border: 1px solid var(--arco-perla);
+            background: var(--arco-blanco);
+            color: var(--color-text, #4b5563);
+            font-size: .8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all .15s;
+        }
+
+        .pagination-controls button:hover:not(:disabled):not(.active) {
+            border-color: var(--arco-siena);
+            color: var(--arco-siena);
+        }
+
+        .pagination-controls button.active {
+            background: var(--mod-accent, var(--arco-siena));
+            color: #fff;
+            border-color: var(--mod-accent, var(--arco-siena));
+        }
+
+        .pagination-controls button:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+        }
+
+        .filter-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--arco-perla);
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 768px) {
+            .filter-bar-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-divider {
+                display: none;
+            }
+            .status-tabs {
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding-bottom: 4px;
+            }
+            .filter-bar input[type="text"],
+            .filter-bar select,
+            .filter-bar input[type="date"] {
+                min-width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 <div class="dash-layout">
@@ -108,10 +307,40 @@ $stats       = $stats ?? ['total' => 0, 'pendientes' => 0, 'revisados' => 0, 're
                 </div>
                 <div class="content-card-body">
                     <div class="filter-bar">
-                        <input type="text" id="searchSubmissions" placeholder="Buscar por nombre, formulario, numero..." oninput="searchTable(this.value)">
+                        <div class="status-tabs" id="statusTabs">
+                            <button class="status-tab active" data-status="Todos" onclick="filterByStatus('Todos', this)">
+                                Todos <span class="tab-count" id="countTodos">0</span>
+                            </button>
+                            <button class="status-tab" data-status="Pendiente" onclick="filterByStatus('Pendiente', this)">
+                                Pendientes <span class="tab-count" id="countPendiente">0</span>
+                            </button>
+                            <button class="status-tab" data-status="Enviado" onclick="filterByStatus('Enviado', this)">
+                                Enviados <span class="tab-count" id="countEnviado">0</span>
+                            </button>
+                            <button class="status-tab" data-status="Revisado" onclick="filterByStatus('Revisado', this)">
+                                Revisados <span class="tab-count" id="countRevisado">0</span>
+                            </button>
+                            <button class="status-tab" data-status="Rechazado" onclick="filterByStatus('Rechazado', this)">
+                                Rechazados <span class="tab-count" id="countRechazado">0</span>
+                            </button>
+                        </div>
+                        <div class="filter-bar-row">
+                            <input type="text" id="searchSubmissions" placeholder="Buscar por nombre, numero, formulario..." oninput="searchTable(this.value)">
+                            <div class="filter-divider"></div>
+                            <select id="formFilter" onchange="filterByForm(this.value)">
+                                <option value="">Todos los formularios</option>
+                            </select>
+                            <div class="filter-divider"></div>
+                            <input type="date" id="dateFrom" onchange="applyAllFilters()" placeholder="Desde">
+                            <input type="date" id="dateTo" onchange="applyAllFilters()" placeholder="Hasta">
+                            <div class="filter-divider"></div>
+                            <button class="btn-export" onclick="exportCSV()">
+                                <i class="bi bi-filetype-csv"></i> Exportar CSV
+                            </button>
+                        </div>
                     </div>
                     <div class="tbl-wrap">
-                        <table class="admin-table" id="submissionsTable" data-pagination>
+                        <table class="admin-table" id="submissionsTable">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -123,39 +352,12 @@ $stats       = $stats ?? ['total' => 0, 'pendientes' => 0, 'revisados' => 0, 're
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <?php if (!empty($submissions)): ?>
-                                    <?php foreach ($submissions as $sub): ?>
-                                        <tr>
-                                            <td>#<?= (int)$sub['id_form_submission'] ?></td>
-                                            <td><code><?= htmlspecialchars($sub['submission_number']) ?></code></td>
-                                            <td class="fw"><?= htmlspecialchars($sub['form_name']) ?></td>
-                                            <td><?= htmlspecialchars(($sub['username'] ?? '') . ' ' . ($sub['lastname'] ?? '')) ?></td>
-                                            <td><?= date('d/m/Y H:i', strtotime($sub['submitted_at'] ?: $sub['created_at'])) ?></td>
-                                            <td>
-                                                <span class="submission-status-badge status-<?= strtolower($sub['status']) ?>">
-                                                    <?= htmlspecialchars($sub['status']) ?>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <button class="btn-icon" title="Ver detalle" onclick="viewSubmission(<?= (int)$sub['id_form_submission'] ?>)">
-                                                    <i class="bi bi-eye-fill"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="7">
-                                            <div class="empty-state">
-                                                <i class="bi bi-inboxes"></i>
-                                                <p>No se han recibido envios todavía.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
+                            <tbody id="submissionsBody"></tbody>
                         </table>
+                    </div>
+                    <div class="pagination-info" id="paginationInfo" style="display:none;">
+                        <span class="showing-text" id="showingText"></span>
+                        <div class="pagination-controls" id="paginationControls"></div>
                     </div>
                 </div>
             </div>
@@ -192,14 +394,239 @@ $stats       = $stats ?? ['total' => 0, 'pendientes' => 0, 'revisados' => 0, 're
 </div>
 
 <script>
-let currentSubmissionId = null;
+var allSubmissions = <?= json_encode(array_values($submissions), JSON_UNESCAPED_UNICODE) ?>;
+var filteredSubmissions = allSubmissions.slice();
+var currentPage = 1;
+var rowsPerPage = 15;
+var currentStatus = 'Todos';
+var currentFormKey = '';
+var currentDateFrom = '';
+var currentDateTo = '';
+var currentSearch = '';
 
-function searchTable(q) {
-    const term = q.toLowerCase();
-    document.querySelectorAll('#submissionsTable tbody tr').forEach(row => {
-        row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+function initFormFilter() {
+    var formMap = {};
+    allSubmissions.forEach(function(s) {
+        if (s.form_key && !formMap[s.form_key]) {
+            formMap[s.form_key] = s.form_name;
+        }
+    });
+    var sel = document.getElementById('formFilter');
+    var keys = Object.keys(formMap).sort();
+    keys.forEach(function(k) {
+        var opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = formMap[k];
+        sel.appendChild(opt);
     });
 }
+
+function updateStatusCounts() {
+    var counts = { Todos: 0, Pendiente: 0, Enviado: 0, Revisado: 0, Rechazado: 0 };
+    allSubmissions.forEach(function(s) {
+        counts.Todos++;
+        if (counts[s.status] !== undefined) counts[s.status]++;
+    });
+    document.getElementById('countTodos').textContent = counts.Todos;
+    document.getElementById('countPendiente').textContent = counts.Pendiente;
+    document.getElementById('countEnviado').textContent = counts.Enviado;
+    document.getElementById('countRevisado').textContent = counts.Revisado;
+    document.getElementById('countRechazado').textContent = counts.Rechazado;
+}
+
+function applyAllFilters() {
+    currentSearch = (document.getElementById('searchSubmissions').value || '').toLowerCase().trim();
+    currentFormKey = document.getElementById('formFilter').value;
+    currentDateFrom = document.getElementById('dateFrom').value;
+    currentDateTo = document.getElementById('dateTo').value;
+
+    filteredSubmissions = allSubmissions.filter(function(s) {
+        if (currentStatus !== 'Todos' && s.status !== currentStatus) return false;
+
+        if (currentFormKey && s.form_key !== currentFormKey) return false;
+
+        if (currentSearch) {
+            var haystack = ((s.submission_number || '') + ' ' + (s.form_name || '') + ' ' + (s.username || '') + ' ' + (s.lastname || '') + ' ' + (s.user_email || '')).toLowerCase();
+            if (haystack.indexOf(currentSearch) === -1) return false;
+        }
+
+        if (currentDateFrom || currentDateTo) {
+            var rawDate = s.submitted_at || s.created_at || '';
+            var dateVal = rawDate.substring(0, 10);
+            if (currentDateFrom && dateVal < currentDateFrom) return false;
+            if (currentDateTo && dateVal > currentDateTo) return false;
+        }
+
+        return true;
+    });
+
+    currentPage = 1;
+    renderPage(currentPage);
+}
+
+function filterByStatus(status, el) {
+    currentStatus = status;
+    document.querySelectorAll('.status-tab').forEach(function(t) { t.classList.remove('active'); });
+    if (el) el.classList.add('active');
+    applyAllFilters();
+}
+
+function filterByForm(formKey) {
+    applyAllFilters();
+}
+
+function searchTable(q) {
+    applyAllFilters();
+}
+
+function renderPage(page) {
+    var tbody = document.getElementById('submissionsBody');
+    var total = filteredSubmissions.length;
+    var totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    currentPage = page;
+
+    var start = (page - 1) * rowsPerPage;
+    var end = Math.min(start + rowsPerPage, total);
+    var pageData = filteredSubmissions.slice(start, end);
+
+    if (total === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><i class="bi bi-inboxes"></i><p>No se encontraron envios con los filtros aplicados.</p></div></td></tr>';
+        document.getElementById('paginationInfo').style.display = 'none';
+        return;
+    }
+
+    var html = '';
+    for (var i = 0; i < pageData.length; i++) {
+        var s = pageData[i];
+        var dateRaw = s.submitted_at || s.created_at || '';
+        var dateFormatted = '';
+        if (dateRaw) {
+            var dt = new Date(dateRaw);
+            if (!isNaN(dt.getTime())) {
+                var dd = String(dt.getDate()).padStart(2, '0');
+                var mm = String(dt.getMonth() + 1).padStart(2, '0');
+                var yyyy = dt.getFullYear();
+                var hh = String(dt.getHours()).padStart(2, '0');
+                var mi = String(dt.getMinutes()).padStart(2, '0');
+                dateFormatted = dd + '/' + mm + '/' + yyyy + ' ' + hh + ':' + mi;
+            } else {
+                dateFormatted = escHtml(dateRaw);
+            }
+        }
+        var fullName = ((s.username || '') + ' ' + (s.lastname || '')).trim();
+        var statusClass = (s.status || '').toLowerCase();
+        html += '<tr>';
+        html += '<td>#' + parseInt(s.id_form_submission) + '</td>';
+        html += '<td><code>' + escHtml(s.submission_number) + '</code></td>';
+        html += '<td class="fw">' + escHtml(s.form_name) + '</td>';
+        html += '<td>' + escHtml(fullName) + '</td>';
+        html += '<td>' + dateFormatted + '</td>';
+        html += '<td><span class="submission-status-badge status-' + statusClass + '">' + escHtml(s.status) + '</span></td>';
+        html += '<td><button class="btn-icon" title="Ver detalle" onclick="viewSubmission(' + parseInt(s.id_form_submission) + ')"><i class="bi bi-eye-fill"></i></button></td>';
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+
+    document.getElementById('paginationInfo').style.display = 'flex';
+    document.getElementById('showingText').textContent = 'Mostrando ' + (start + 1) + '-' + end + ' de ' + total + ' envios';
+
+    renderPaginationControls(totalPages);
+}
+
+function renderPaginationControls(totalPages) {
+    var container = document.getElementById('paginationControls');
+    var html = '';
+
+    html += '<button ' + (currentPage <= 1 ? 'disabled' : '') + ' onclick="renderPage(' + (currentPage - 1) + ')"><i class="bi bi-chevron-left"></i></button>';
+
+    var pages = [];
+    if (totalPages <= 7) {
+        for (var i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+        pages.push(1);
+        if (currentPage > 3) pages.push('...');
+        var pStart = Math.max(2, currentPage - 1);
+        var pEnd = Math.min(totalPages - 1, currentPage + 1);
+        for (var p = pStart; p <= pEnd; p++) pages.push(p);
+        if (currentPage < totalPages - 2) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    for (var j = 0; j < pages.length; j++) {
+        if (pages[j] === '...') {
+            html += '<button disabled style="border:none;background:none;cursor:default;">...</button>';
+        } else {
+            html += '<button class="' + (pages[j] === currentPage ? 'active' : '') + '" onclick="renderPage(' + pages[j] + ')">' + pages[j] + '</button>';
+        }
+    }
+
+    html += '<button ' + (currentPage >= totalPages ? 'disabled' : '') + ' onclick="renderPage(' + (currentPage + 1) + ')"><i class="bi bi-chevron-right"></i></button>';
+
+    container.innerHTML = html;
+}
+
+function exportCSV() {
+    var headers = ['#', 'Numero', 'Formulario', 'Usuario', 'Email', 'Fecha', 'Estado'];
+    var rows = [headers.join(',')];
+
+    filteredSubmissions.forEach(function(s, idx) {
+        var fullName = ((s.username || '') + ' ' + (s.lastname || '')).trim();
+        var dateRaw = s.submitted_at || s.created_at || '';
+        var dateFormatted = '';
+        if (dateRaw) {
+            var dt = new Date(dateRaw);
+            if (!isNaN(dt.getTime())) {
+                var dd = String(dt.getDate()).padStart(2, '0');
+                var mm = String(dt.getMonth() + 1).padStart(2, '0');
+                var yyyy = dt.getFullYear();
+                var hh = String(dt.getHours()).padStart(2, '0');
+                var mi = String(dt.getMinutes()).padStart(2, '0');
+                dateFormatted = dd + '/' + mm + '/' + yyyy + ' ' + hh + ':' + mi;
+            } else {
+                dateFormatted = dateRaw;
+            }
+        }
+        var row = [
+            idx + 1,
+            csvEscape(s.submission_number),
+            csvEscape(s.form_name),
+            csvEscape(fullName),
+            csvEscape(s.user_email),
+            csvEscape(dateFormatted),
+            csvEscape(s.status)
+        ];
+        rows.push(row.join(','));
+    });
+
+    var blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'envios_formularios_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function csvEscape(val) {
+    var str = String(val || '');
+    if (str.indexOf(',') !== -1 || str.indexOf('"') !== -1 || str.indexOf('\n') !== -1) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+}
+
+function escHtml(t) {
+    var d = document.createElement('div');
+    d.textContent = t || '';
+    return d.innerHTML;
+}
+
+var currentSubmissionId = null;
 
 function closeDetail() {
     document.getElementById('detailModal').classList.remove('open');
@@ -215,53 +642,57 @@ function viewSubmission(id) {
     document.getElementById('detailBody').innerHTML = '<p>Cargando...</p>';
     document.getElementById('detailModal').classList.add('open');
     document.getElementById('statusControls').style.display = 'none';
-    const prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';
+    var prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';
     fetch('?url=' + prefix + '/form-submissions/detail&id=' + id)
         .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
-        .then(data => {
+        .then(function(data) {
             if (!data.success) { document.getElementById('detailBody').innerHTML = '<p>' + (data.message || 'Error') + '</p>'; return; }
-            const sub = data.data;
+            var sub = data.data;
             document.getElementById('detailTitle').textContent = 'Envio ' + sub.submission_number;
-            let html = '<div class="submission-detail-grid">';
-            html += '<div class="submission-detail-field"><div class="field-label">Formulario</div><div class="field-value">' + esc(sub.form_name) + ' v' + sub.version_number + '</div></div>';
-            html += '<div class="submission-detail-field"><div class="field-label">Usuario</div><div class="field-value">' + esc((sub.username||'')+' '+(sub.lastname||'')) + ' (' + esc(sub.user_email||'') + ')</div></div>';
+            var html = '<div class="submission-detail-grid">';
+            html += '<div class="submission-detail-field"><div class="field-label">Formulario</div><div class="field-value">' + escHtml(sub.form_name) + ' v' + sub.version_number + '</div></div>';
+            html += '<div class="submission-detail-field"><div class="field-label">Usuario</div><div class="field-value">' + escHtml((sub.username||'')+' '+(sub.lastname||'')) + ' (' + escHtml(sub.user_email||'') + ')</div></div>';
             html += '<div class="submission-detail-field"><div class="field-label">Fecha</div><div class="field-value">' + (sub.submitted_at || sub.created_at) + '</div></div>';
-            html += '<div class="submission-detail-field"><div class="field-label">Estado</div><div class="field-value"><span class="submission-status-badge status-' + sub.status.toLowerCase() + '">' + esc(sub.status) + '</span></div></div>';
-            if (sub.review_notes) html += '<div class="submission-detail-field"><div class="field-label">Notas</div><div class="field-value">' + esc(sub.review_notes) + '</div></div>';
+            html += '<div class="submission-detail-field"><div class="field-label">Estado</div><div class="field-value"><span class="submission-status-badge status-' + sub.status.toLowerCase() + '">' + escHtml(sub.status) + '</span></div></div>';
+            if (sub.review_notes) html += '<div class="submission-detail-field"><div class="field-label">Notas</div><div class="field-value">' + escHtml(sub.review_notes) + '</div></div>';
             html += '<div style="margin-top:8px;font-size:.85rem;font-weight:700;">Valores del formulario</div>';
             (sub.values || []).forEach(function(v) {
-                let dv = v.field_value || '---';
+                var dv = v.field_value || '---';
                 if (v.field_key === 'signature' && dv.indexOf('data:image') === 0) {
                     dv = '<img src="' + dv + '" style="max-width:200px;border:1px solid #e5e7eb;border-radius:4px;">';
-                } else { dv = esc(dv); }
-                html += '<div class="submission-detail-field"><div class="field-label">' + esc(v.field_label) + '</div><div class="field-value">' + dv + '</div></div>';
+                } else { dv = escHtml(dv); }
+                html += '<div class="submission-detail-field"><div class="field-label">' + escHtml(v.field_label) + '</div><div class="field-value">' + dv + '</div></div>';
             });
             html += '</div>';
             document.getElementById('detailBody').innerHTML = html;
             document.getElementById('statusSelect').value = sub.status;
             document.getElementById('statusControls').style.display = 'flex';
         })
-        .catch(() => { document.getElementById('detailBody').innerHTML = '<p>Error de conexion.</p>'; });
+        .catch(function() { document.getElementById('detailBody').innerHTML = '<p>Error de conexion.</p>'; });
 }
 
 function updateStatus() {
     if (!currentSubmissionId) return;
-    const status = document.getElementById('statusSelect').value;
-    const prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';
+    var status = document.getElementById('statusSelect').value;
+    var prefix = window.location.search.includes('gerente') ? 'gerente' : 'admin';
     fetch('?url=' + prefix + '/form-submissions/update-status', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ id: currentSubmissionId, status: status })
     })
     .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
-    .then(data => {
+    .then(function(data) {
         if (data.success) { location.reload(); }
         else { showToast(data.message || 'Error al actualizar.', 'error'); }
     })
-    .catch(() => showToast('Error de conexion.', 'error'));
+    .catch(function() { showToast('Error de conexion.', 'error'); });
 }
 
-function esc(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+document.addEventListener('DOMContentLoaded', function() {
+    initFormFilter();
+    updateStatusCounts();
+    applyAllFilters();
+});
 </script>
 <script src="<?= URL ?>assets/js/toast.js"></script>
 </body>

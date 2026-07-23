@@ -119,7 +119,74 @@ class FormSubmissionController {
             'message'           => 'Formulario enviado exitosamente.',
             'submission_number' => $result['submission_number'],
         ]);
+
+        $this->sendAdminNotification($formType['name'], $result['submission_number'], $idUser);
+
         exit;
+    }
+
+    private function sendAdminNotification($formName, $submissionNumber, $userId){
+        try {
+            require_once ROOT_PATH . '/app/config/database.php';
+            require_once ROOT_PATH . '/app/models/User.php';
+
+            $db = new Database();
+            $conn = $db->connect();
+
+            $stmt = $conn->prepare("SELECT name, email FROM user WHERE role_id >= 3 AND status = 1");
+            $stmt->execute();
+            $admins = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (empty($admins)) return;
+
+            $userModel = new User();
+            $user = $userModel->findById($userId);
+            $userName = $user ? trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')) : 'Usuario #' . $userId;
+
+            $baseUrl = URL;
+            $viewUrl = $baseUrl . 'admin/form-submissions';
+            $fecha = date('d/m/Y H:i');
+
+            $htmlBody = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="margin:0;padding:0;background-color:#f4f4f4;font-family:Arial,Helvetica,sans-serif;">';
+            $htmlBody .= '<div style="max-width:600px;margin:30px auto;background-color:#ffffff;border-radius:8px;overflow:hidden;">';
+            $htmlBody .= '<div style="background-color:#1a1a2e;padding:24px 30px;text-align:center;">';
+            $htmlBody .= '<h1 style="margin:0;color:#ffffff;font-size:20px;letter-spacing:3px;">ARCO SEGUROS</h1>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '<div style="padding:30px;text-align:center;">';
+            $htmlBody .= '<div style="width:60px;height:60px;border-radius:50%;background-color:#C0392B;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">';
+            $htmlBody .= '<span style="color:#ffffff;font-size:28px;">&#9993;</span>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '<h2 style="margin:0 0 10px;color:#1a1a2e;font-size:18px;">Nuevo env&iacute;o de formulario</h2>';
+            $htmlBody .= '<p style="color:#666;font-size:14px;margin:0 0 24px;">Se ha recibido un nuevo env&iacute;o en el sistema.</p>';
+            $htmlBody .= '<table style="width:100%;border-collapse:collapse;text-align:left;margin-bottom:24px;">';
+            $htmlBody .= '<tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:6px 0 0 6px;font-weight:bold;color:#555;font-size:13px;width:40%;">Formulario</td>';
+            $htmlBody .= '<td style="padding:10px 14px;background:#f9f9f9;border-radius:0 6px 6px 0;color:#1a1a2e;font-size:13px;">' . htmlspecialchars($formName) . '</td></tr>';
+            $htmlBody .= '<tr><td style="padding:10px 14px;font-weight:bold;color:#555;font-size:13px;">N&uacute;mero de env&iacute;o</td>';
+            $htmlBody .= '<td style="padding:10px 14px;color:#1a1a2e;font-size:13px;">' . htmlspecialchars($submissionNumber) . '</td></tr>';
+            $htmlBody .= '<tr><td style="padding:10px 14px;background:#f9f9f9;border-radius:6px 0 0 6px;font-weight:bold;color:#555;font-size:13px;">Usuario</td>';
+            $htmlBody .= '<td style="padding:10px 14px;background:#f9f9f9;border-radius:0 6px 6px 0;color:#1a1a2e;font-size:13px;">' . htmlspecialchars($userName) . '</td></tr>';
+            $htmlBody .= '<tr><td style="padding:10px 14px;font-weight:bold;color:#555;font-size:13px;">Fecha</td>';
+            $htmlBody .= '<td style="padding:10px 14px;color:#1a1a2e;font-size:13px;">' . $fecha . '</td></tr>';
+            $htmlBody .= '</table>';
+            $htmlBody .= '<a href="' . $viewUrl . '" style="display:inline-block;background-color:#C0392B;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:bold;font-size:14px;">Ver env&iacute;os</a>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '<div style="background-color:#f4f4f4;padding:16px 30px;text-align:center;">';
+            $htmlBody .= '<p style="margin:0;color:#999;font-size:11px;">Este es un correo autom&aacute;tico de Arco Seguros. No respondas directamente a este mensaje.</p>';
+            $htmlBody .= '</div>';
+            $htmlBody .= '</div></body></html>';
+
+            $headers = "MIME-Version: 1.0\r\n";
+            $headers .= "Content-type: text/html; charset=UTF-8\r\n";
+            $headers .= "From: Arco Seguros <noreply@arco-seguros.com>\r\n";
+
+            foreach ($admins as $admin) {
+                if (!empty($admin['email'])) {
+                    mail($admin['email'], "Nuevo envío de formulario: {$formName}", $htmlBody, $headers);
+                }
+            }
+        } catch (Exception $e) {
+            error_log('sendAdminNotification error: ' . $e->getMessage());
+        }
     }
 
     public function getSubmission(){
