@@ -229,7 +229,7 @@ function viewStructure(versionId) {
     body.innerHTML = '<p style="color:#6b7280;text-align:center;padding:20px;">Cargando…</p>';
     document.getElementById('structureModal').classList.add('open');
 
-    fetch('?url=' + prefix + '/form-builder/get-structure?id=' + versionId)
+    fetch('?url=' + prefix + '/form-builder/get-structure&id=' + versionId)
         .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){return{success:false}}})
         .then(function(res){
             if (!res.success || !res.data || !res.data.length) {
@@ -251,7 +251,7 @@ function viewStructure(versionId) {
                     sec.fields.forEach(function(f){
                         html += '<div style="padding:8px 0 8px 16px;font-size:.82rem;color:var(--arco-carbon);border-left:2px solid var(--mod-accent,var(--arco-siena));margin-left:4px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">';
                         html += '<strong>' + escHtml(f.label || f.name) + '</strong>';
-                        html += '<span style="font-size:.7rem;background:var(--arco-lino);padding:2px 8px;border-radius:12px;color:var(--arco-siena);">' + escHtml(f.field_key || f.id_form_field_type) + '</span>';
+                        html += '<span style="font-size:.7rem;background:var(--arco-lino);padding:2px 8px;border-radius:12px;color:var(--arco-siena);">' + escHtml(f.field_type_name || f.id_form_field_type) + '</span>';
                         if (f.is_required) html += ' <span style="color:#B1503F;font-size:.72rem;font-weight:700;">*</span>';
                         html += '</div>';
                     });

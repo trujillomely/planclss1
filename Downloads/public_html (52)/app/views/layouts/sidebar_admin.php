@@ -116,7 +116,9 @@
                 <i class="bi bi-caret-right sidebar-section-caret"></i>
             </button>
             <div class="sidebar-subnav">
-                <a href="?url=admin/form-builder"><i class="bi bi-file-earmark-text" style="margin-right:6px;font-size:.8rem;"></i>Crear Formulario</a>
+                <a href="?url=admin/form-types"><i class="bi bi-list-ul" style="margin-right:6px;font-size:.8rem;"></i>Tipos de Formulario</a>
+                <a href="?url=admin/form-builder"><i class="bi bi-tools" style="margin-right:6px;font-size:.8rem;"></i>Constructor</a>
+                <a href="?url=admin/form-versions"><i class="bi bi-clock-history" style="margin-right:6px;font-size:.8rem;"></i>Versiones</a>
                 <a href="?url=admin/form-submissions"><i class="bi bi-inboxes" style="margin-right:6px;font-size:.8rem;"></i>Envios</a>
             </div>
         </div>

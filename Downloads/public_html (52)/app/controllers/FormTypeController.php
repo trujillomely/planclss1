@@ -302,7 +302,38 @@ class FormTypeController {
 
         require_once ROOT_PATH . '/app/models/FormBuilder.php';
         $builder = new FormBuilder();
-        $builder->saveStructure($versionId, $formTypeId, $tpl['sections']);
+
+        $typeMap = [];
+        foreach ($builder->getFieldTypes() as $ft) {
+            $typeMap[$ft['field_key']] = (int) $ft['id_form_field_type'];
+        }
+
+        $resolvedSections = [];
+        foreach ($tpl['sections'] as $section) {
+            $resolvedFields = [];
+            foreach (($section['fields'] ?? []) as $field) {
+                $resolvedFields[] = [
+                    'id_form_field_type' => $typeMap[$field['type_key']] ?? 1,
+                    'name'               => $field['name'] ?? '',
+                    'label'              => $field['label'] ?? '',
+                    'placeholder'        => $field['placeholder'] ?? null,
+                    'help_text'          => $field['help_text'] ?? null,
+                    'default_value'      => $field['default_value'] ?? null,
+                    'is_required'        => !empty($field['required']),
+                    'is_visible'         => true,
+                    'allowed_file_types' => $field['allowed_file_types'] ?? null,
+                    'options'            => $field['options'] ?? [],
+                ];
+            }
+            $resolvedSections[] = [
+                'section_name'        => $section['section_name'] ?? '',
+                'section_description' => $section['section_description'] ?? null,
+                'is_repeatable'       => $section['is_repeatable'] ?? false,
+                'fields'              => $resolvedFields,
+            ];
+        }
+
+        $builder->saveStructure($versionId, $formTypeId, $resolvedSections);
 
         echo json_encode(['success' => true, 'message' => 'Formulario creado desde plantilla.', 'data' => ['id_form_type' => $formTypeId]]);
         exit;

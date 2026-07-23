@@ -222,6 +222,8 @@ $sections   = $sections ?? [];
                 }
                 </script>
 
+            <?php else: ?>
+
                 <!-- Encabezado del formulario seleccionado -->
                 <div class="fb-header">
                     <div class="fb-header-info">

@@ -403,14 +403,14 @@ class ClienteController {
         $structure   = $builderModel->getStructure($formType['id_current_version']);
         $prevSubmissions = $submissionModel->getByVersionAndUser($formType['id_current_version'], $_SESSION['id_user']);
 
-        $deps = [];
+        $dependencies = [];
         if (!empty($formType['id_current_version'])) {
             try {
                 $db = new Database();
                 $conn = $db->connect();
                 $depStmt = $conn->prepare("SELECT * FROM form_field_dependency WHERE id_source_field IN (SELECT id_form_field FROM form_field WHERE id_form_version = :vid)");
                 $depStmt->execute([':vid' => $formType['id_current_version']]);
-                $deps = $depStmt->fetchAll(PDO::FETCH_ASSOC);
+                $dependencies = $depStmt->fetchAll(PDO::FETCH_ASSOC);
             } catch (Exception $e) {}
         }
 
