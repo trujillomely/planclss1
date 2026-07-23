@@ -1,0 +1,23 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# SQL schema files (contain sensitive structure)
+*.sql
+
+# Storage/temp files
+app/storage/rate_limit/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
