@@ -110,8 +110,16 @@
         <?php endif; ?>
 
         <?php if (Auth::can('formularios', 'ver')): ?>
-        <a href="?url=admin/form-builder"><i class="bi bi-file-earmark-text"></i>Formularios</a>
-        <a href="?url=admin/form-submissions"><i class="bi bi-inboxes"></i>Envios</a>
+        <div class="sidebar-section" data-section>
+            <button type="button" class="sidebar-section-title" data-toggle="subnav">
+                <span class="title-left"><i class="bi bi-file-earmark-text"></i>Formularios</span>
+                <i class="bi bi-caret-right sidebar-section-caret"></i>
+            </button>
+            <div class="sidebar-subnav">
+                <a href="?url=admin/form-builder"><i class="bi bi-file-earmark-text" style="margin-right:6px;font-size:.8rem;"></i>Crear Formulario</a>
+                <a href="?url=admin/form-submissions"><i class="bi bi-inboxes" style="margin-right:6px;font-size:.8rem;"></i>Envios</a>
+            </div>
+        </div>
         <?php endif; ?>
 
         <?php if (Auth::can('reportes', 'ver')): ?>
